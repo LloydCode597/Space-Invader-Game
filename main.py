@@ -3,7 +3,7 @@ import random
 import pygame
 from pygame import mixer
 
-# Intialize the pygame
+# Initialize the pygame
 pygame.init()
 
 # create the screen
@@ -38,28 +38,39 @@ num_of_enemies = 6
 for i in range(num_of_enemies):
     enemyImg.append(pygame.image.load('enemy1-ship.png'))
     enemyX.append(random.randint(0, 736))
-    enemyY.append(random.randint(50, 150))
+    enemyY.append(random.randint(0, 150))
     enemyX_change.append(4)
     enemyY_change.append(40)
 
 # Bullet
-
-# Ready - You can't see the bullet on the screen
-# Fire - The bullet is currently moving
-
 bulletImg = pygame.image.load('bullet.png')
 bulletX = 0
 bulletY = 480
 bulletX_change = 0
-bulletY_change = 3
+bulletY_change = 2.5  # Adjust this value to change the bullet speed
 bullet_state = "ready"
 
 # Score
 score_value = 0
 font = pygame.font.Font('freesansbold.ttf', 32)
-
 textX = 10
-testY = 10
+textY = 10
+
+# Power-up
+power_upImg = pygame.image.load('power-up.png')
+power_upX = random.randint(0, 736)
+power_upY = -50
+power_upY_change = 0.5  # speed of the powerup falls
+power_up_state = "ready"
+power_up_duration = 3  # Power-up duration in seconds
+power_up_start_time = None
+
+# Enhanced Firepower
+enhanced_firepower = False
+enhanced_firepower_bullet_speed = 30  # Bullet speed during enhanced firepower
+
+# Original Bullet Speed
+original_bullet_speed = 2.5
 
 # Game Over
 over_font = pygame.font.Font('freesansbold.ttf', 64)
@@ -89,6 +100,18 @@ def fire_bullet(x, y):
     screen.blit(bulletImg, (x + 16, y + 10))
 
 
+def spawn_power_up():
+    global power_up_state, power_upX, power_upY, power_up_start_time
+    power_upX = random.randint(0, 736)
+    power_upY = -50
+    power_up_state = "ready"
+    power_up_start_time = None
+
+
+def show_power_up(x, y):
+    screen.blit(power_upImg, (x, y))
+
+
 def isCollision(enemyX, enemyY, bulletX, bulletY):
     distance = math.sqrt(math.pow(enemyX - bulletX, 2) + (math.pow(enemyY - bulletY, 2)))
     if distance < 27:
@@ -105,6 +128,7 @@ while running:
     screen.fill((0, 0, 0))
     # Background Image
     screen.blit(background, (0, 0))
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -119,7 +143,7 @@ while running:
                 if bullet_state == "ready":
                     bulletSound = mixer.Sound("laser.wav")
                     bulletSound.play()
-                    # Get the current x cordinate of the spaceship
+                    # Get the current x coordinate of the spaceship
                     bulletX = playerX
                     fire_bullet(bulletX, bulletY)
 
@@ -127,9 +151,7 @@ while running:
             if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
                 playerX_change = 0
 
-    # 5 = 5 + -0.1 -> 5 = 5 - 0.1
-    # 5 = 5 + 0.1
-
+    # Player movement
     playerX += playerX_change
     if playerX <= 0:
         playerX = 0
@@ -167,7 +189,7 @@ while running:
 
         enemy(enemyX[i], enemyY[i], i)
 
-    # Bullet Movement
+    # Bullet movement
     if bulletY <= 0:
         bulletY = 480
         bullet_state = "ready"
@@ -176,6 +198,44 @@ while running:
         fire_bullet(bulletX, bulletY)
         bulletY -= bulletY_change
 
+    # Power-up Movement
+    if power_up_state == "ready":
+        power_upY += power_upY_change
+        if power_upY >= 600:
+            spawn_power_up()
+
+    # Power-up Collision
+    power_up_collision = isCollision(power_upX, power_upY, playerX, playerY)
+    if power_up_collision:
+        enhanced_firepower = True
+        power_up_state = "consumed"
+        power_up_start_time = pygame.time.get_ticks()
+
+    # Enhanced Firepower Effect
+    if enhanced_firepower:
+        if power_up_start_time is not None:
+            current_time = pygame.time.get_ticks()
+            elapsed_time = (current_time - power_up_start_time) / 1000  # Convert to seconds
+            remaining_time = power_up_duration - elapsed_time
+
+            if elapsed_time <= power_up_duration:
+                # Implement the logic for enhanced firepower here
+                # Adjust bullet speed
+                bulletY_change = enhanced_firepower_bullet_speed
+
+                # Display remaining time
+                timer_font = pygame.font.Font('freesansbold.ttf', 24)
+                timer_text = timer_font.render("Power-up Time: " + str(int(remaining_time)), True, (255, 255, 255))
+                screen.blit(timer_text, (10, 40))
+            else:
+                enhanced_firepower = False
+                power_up_start_time = None  # Reset power-up start time
+                bulletY_change = original_bullet_speed # Reset bullet speed
+
+    # Draw Power-up
+    if power_up_state == "ready":
+        show_power_up(power_upX, power_upY)
+
     player(playerX, playerY)
-    show_score(textX, testY)
+    show_score(textX, textY)
     pygame.display.update()
